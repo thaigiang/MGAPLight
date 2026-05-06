@@ -1,135 +1,142 @@
-Tuyệt vời — mình hướng dẫn bạn tạo **một Conda env mới** cho GPU training (PyTorch CUDA + RLlib + SUMO-RL) trên Windows, kèm kiểm tra nhanh để chắc chắn mọi thứ chạy ổn.
-
-# 1) Tạo môi trường mới
+# 1) Create Environment
 
 ```bat
-:: 1) Tạo env Python 3.10
+:: 1) Create Python 3.10 environment
 conda create -n rl-sumo-gpu python=3.10 -y
 conda activate rl-sumo-gpu
 ```
 
-# 2) Cài PyTorch bản CUDA (không cần cài CUDA Toolkit hệ thống)
+# 2) Install the CUDA version of PyTorch (no need to install the system CUDA Toolkit)
 
-> Yêu cầu: driver NVIDIA đủ mới (thường ≥ 535) để chạy CUDA 12.x.
+> Requirement: A sufficiently recent NVIDIA driver (usually ≥ 535) to run CUDA 12.x.
 
 ```bat
-:: PyTorch + CUDA 12.1 (đồng bộ cả 3 gói để tránh xung đột)
+:: PyTorch + CUDA 12.1 (synchronize all 3 packages to avoid conflicts)
 python -m pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 ^
-  --index-url https://download.pytorch.org/whl/cu121
+
+--index-url https://download.pytorch.org/whl/cu121
 ```
 
-# 3) Cài RLlib + phụ thuộc học tăng cường
+# 3) Install RLlib + reinforcement learning dependencies
 
 ```bat
-:: RLlib (Ray) – phiên bản ổn định với Gymnasium 0.29
+
+:: RLlib (Ray) – stable version with Gymnasium 0.29
 pip install "ray[rllib]==2.9.3" gymnasium==0.28.1 pettingzoo
 ```
+# 4) Install SUMO (binaries) + SUMO-RL
 
-# 4) Cài SUMO (binaries) + SUMO-RL
-
-Cách gọn gàng nhất là lấy SUMO từ conda-forge (đi kèm `sumo-gui`, `traci`, …):
+The neatest way is to get SUMO from conda-forge (includes `sumo-gui`, `traci`, …):
 
 ```bat
 conda install -c conda-forge sumo -y
+
 ```
 
-> Nếu bạn đã cài SUMO standalone trước đó thì **không cần** dòng `conda install sumo`; chỉ cần bảo đảm `SUMO_HOME` trỏ đúng vị trí cài.
+> If you have previously installed SUMO standalone, you **do not need** the `conda install sumo` line; just make sure `SUMO_HOME` points to the correct installation location.
 
-Rồi cài SUMO-RL:
+Then install SUMO-RL:
 
 ```bat
 pip install sumo-rl
 ```
+# 5) Setting SUMO environment variables
 
-# 5) Thiết lập biến môi trường SUMO
-
-Nếu cài SUMO từ conda-forge:
+If installing SUMO from conda-forge:
 
 ```bat
-:: Đặt SUMO_HOME (đường dẫn chuẩn trong conda trên Windows)
+:: Set SUMO_HOME (standard path in conda on Windows)
 setx SUMO_HOME "%CONDA_PREFIX%\Library\share\sumo"
 
-:: (Khuyến nghị) Thêm thư mục bin của SUMO vào PATH để gọi sumo/sumo-gui
+:: (Recommended) Add the SUMO bin folder to PATH to call sumo/sumo-gui
 setx PATH "%PATH%;%CONDA_PREFIX%\Library\bin"
 ```
 
-Nếu dùng bản standalone của SUMO, thay đường dẫn bằng nơi bạn cài, ví dụ:
+If using a standalone version of SUMO, replace the path with your installation location, for example:
 
 ```bat
 setx SUMO_HOME "C:\Program Files (x86)\Eclipse\Sumo"
 setx PATH "%PATH%;C:\Program Files (x86)\Eclipse\Sumo\bin"
 ```
 
-# 6) Kiểm tra nhanh GPU + SUMO
+#6) Quick GPU + SUMO test
 
 ```bat
 python - <<PY
 import torch, os
 print("Torch:", torch.__version__)
 print("CUDA available:", torch.cuda.is_available())
-if torch.cuda.is_available():
-    print("CUDA runtime:", torch.version.cuda)
-    print("GPU:", torch.cuda.get_device_name(0))
+if torch.cuda.is_available(): 
+print("CUDA runtime:", torch.version.cuda) 
+print("GPU:", torch.cuda.get_device_name(0))
 print("SUMO_HOME:", os.environ.get("SUMO_HOME"))
 PY
 
-:: kiểm tra binary SUMO
+:: check binary SUMO
 sumo -V
 sumo-gui -V
 ```
 
-# 7) Chạy smoke test SUMO-RL (không RL)
+#7) Run smoke test SUMO-RL (no RL)
 
 ```bat
 python - <<PY
 from sumo_rl import parallel_env
 import os
-env = parallel_env(
-    net_file=r"E:\Work\FPT University\#Documents\PhD\Paper 4 - Multi Agents\map\4x4.net.xml",
-    route_file=r"E:\Work\FPT University\#Documents\PhD\Paper 4 - Multi Agents\map\4x4c1c2c1c2.rou.xml",
-    use_gui=False,
-    num_seconds=60,
-    fixed_ts=True,          # chạy fixed-time
-    delta_time=5,
-    yellow_time=3,
+env = parallel_env( 
+net_file=r"E:\Work\FPT University\#Documents\PhD\Paper 4 - Multi Agents\map\4x4.net.xml", 
+route_file=r"E:\Work\FPT University\#Documents\PhD\Paper 4 - Multi Agents\map\4x4c1c2c1c2.rou.xml", 
+use_gui=False, 
+num_seconds=60, 
+fixed_ts=True, # run fixed-time 
+delta_time=5, 
+yellow_time=3,
 )
 obs, _ = env.reset(seed=0)
-for _ in range(12):         # 12 bước x 5s = 60s
-    actions = {a: 0 for a in obs.keys()}  # action dummy
-    obs, rew, term, trunc, info = env.step(actions)
+for _ in range(12): # 12 steps x 5s = 60s 
+actions = {a: 0 for a in obs.keys()} # action dummy 
+obs, rew, term, trunc, info = env.step(actions)
 env.close()
 print("Smoke test OK")
 PY
 ```
 
-# Hạ setuptools xuống <81
+# Lower setuptools to <81
 python -m pip install --upgrade --force-reinstall "setuptools==69.5.1"
 
-# 8) Chạy PPO với GPU
+# 8) Run PPO with GPU
 
-Trong script train của bạn, nhớ bật GPU cho learner:
+In your training script, remember to enable GPU for the learner:
 
 ```python
 from ray.rllib.algorithms.ppo import PPOConfig
 
 config = (
-    PPOConfig()
-    .framework("torch")
-    .resources(num_gpus=1)               # << dùng 1 GPU cho learner
-    .rollouts(num_rollout_workers=4)     # rollout workers vẫn chạy CPU là bình thường
-    # .training(... các hyperparams ...)
-    # .environment("4x4grid", env_config={...})
+PPOConfig()
+
+.framework("torch")
+
+.resources(num_gpus=1) # << use 1 GPU for learner
+
+.rollouts(num_rollout_workers=4) # rollout workers still run on CPU normally
+
+# .training(... hyperparams ...)
+
+# .environment("4x4grid", env_config={...})
+
 )
 algo = config.build()
 ```
 
-> Kiểm tra log RLlib: sẽ có dòng kiểu `Resources requested: num_gpus: 1`.
+> Check log RLlib: will have a line like `Resources requested: num_gpus: 1`.
 
-# 9) Tránh xung đột & mẹo
+#9) Avoiding Conflicts & Tips
 
-* **Không** cài lẫn lộn `torch` từ conda và pip. Ở đây chúng ta dùng **pip** cho PyTorch → tiếp tục dùng pip cho các gói liên quan PyTorch.
-* Nếu sau này cần cài thêm gói “native” (vd: `torch-scatter`, `xformers`), hãy chọn đúng wheel khớp `torch==2.4.1+cu121`.
-* Tắt spam cảnh báo deprecated (tuỳ chọn):
+* **Do not** mix up installing `torch` from conda and pip. Here we use **pip** for PyTorch → continue using pip for related PyTorch packages.
+
+* If you later need to install additional “native” packages (e.g., `torch-scatter`, `xformers`), choose the correct matching wheel `torch==2.4.1+cu121`.
+
+* Disable spam deprecated warnings (optional):
 
 ```bat
 set PYTHONWARNINGS=ignore::DeprecationWarning
@@ -138,69 +145,87 @@ set RAY_DEDUP_LOGS=0
 
 ---
 
-Nếu bạn muốn, mình có thể gửi kèm **một file `requirements.txt`** tối giản đúng version để bạn `pip install -r` trong env mới.
-=================================================================================================================================================
-
-
-=================================================================================================================================================
-Tuyệt—đây là file **`environment.yml`** sạch (GPU) đã pin phiên bản để tránh mọi xung đột NumPy/PyArrow/RLlib mà bạn gặp:
+==========================================================================================================================================
+Great—this is a clean **`environment.yml` (GPU) file with version pinned to avoid any NumPy/PyArrow/RLlib conflicts you might encounter:
 
 ```yaml
+
 name: rl-sumo-gpu
 channels:
-  - conda-forge
-  - defaults
+
+- conda-forge
+
+- defaults
 
 dependencies:
-  - python=3.10.14
-  - pip>=24.0
-  - setuptools=68.2.2
-  - wheel=0.41.2
 
-  # (Tùy chọn) các tiện ích cơ bản hay dùng
-  - ca-certificates
-  - openssl
+- python=3.10.14
 
-  - pip:
-      # PyTorch GPU (CUDA 12.1) — dùng index của PyTorch để tự lấy wheel +cu121
-      - --index-url https://download.pytorch.org/whl/cu121
-      - torch==2.4.1
-      - torchvision==0.19.1
-      - torchaudio==2.4.1
+- pip>=24.0
 
-      # Pin lõi khoa học KHÔNG lên NumPy 2.x (tránh lỗi _ARRAY_API)
-      - numpy==1.26.4
-      - pandas==1.5.3
-      - pyarrow==6.0.1
+- setuptools=68.2.2
 
-      # RLlib + phụ thuộc khớp phiên bản
-      - ray[rllib]==2.9.3
-      - gymnasium==0.28.1
-      - pettingzoo==1.24.3
+- wheel=0.41.2
 
-      # SUMO-RL ổn định
-      - sumo-rl==1.4.5
+# (Optional) commonly used basic utilities
+
+- ca-certificates
+
+- openssl
+
+- pip:
+
+# PyTorch GPU (CUDA 12.1) — uses PyTorch index to automatically get wheel +cu121
+
+- --index-url https://download.pytorch.org/whl/cu121
+
+- torch==2.4.1
+
+- torchvision==0.19.1
+
+- torchaudio==2.4.1
+
+# Pin core science NOT to NumPy 2.x (avoid _ARRAY_API error)
+
+- numpy==1.26.4
+
+- pandas==1.5.3
+
+- pyarrow==6.0.1
+
+# RLlib + dependency match version
+
+- ray[rllib]==2.9.3
+
+- gymnasium==0.28.1
+
+- pettingzoo==1.24.3
+
+# SUMO-RL stable
+
+- sumo-rl==1.4.5
 ```
 
-### Cách dùng
 
-1. Lưu nội dung trên thành `environment.yml`, rồi chạy:
+### How to Use
+
+1. Save the above content to `environment.yml`, then run:
 
 ```bash
 conda env create -f environment.yml
 conda activate rl-sumo-gpu
 ```
 
-2. (Windows) Thiết lập biến môi trường SUMO (đổi đường dẫn nếu khác):
+2. (Windows) Set the SUMO environment variable (change the path if different):
 
 ```bash
 setx SUMO_HOME "C:\Program Files (x86)\Eclipse\Sumo"
 setx PYTHONPATH "%SUMO_HOME%\tools;%PYTHONPATH%"
 ```
 
-→ Mở terminal mới để biến môi trường có hiệu lực.
+→ Open a new terminal for the environment variable to take effect.
 
-3. Kiểm tra nhanh:
+3. Quick check:
 
 ```bash
 python - << "PY"
@@ -215,4 +240,4 @@ print("pettingzoo", pettingzoo.__version__)
 PY
 ```
 
-> Kỳ vọng: `torch 2.4.1 (cuda? True)`, `numpy 1.26.4`, `pyarrow 6.0.1`, `pandas 1.5.3`, `ray 2.9.3`, `gymnasium 0.28.1`, `pettingzoo 1.24.3`.
+> Expected: `torch 2.4.1 (cuda? True)`, `numpy 1.26.4`, `pyarrow 6.0.1`, `pandas 1.5.3`, `ray 2.9.3`, `gymnasium 0.28.1`, `pettingzoo 1.24.3`.
