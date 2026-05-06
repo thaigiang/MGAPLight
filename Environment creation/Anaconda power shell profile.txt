@@ -1,0 +1,66 @@
+À, lỗi đó là do **file profile chưa tồn tại (hoặc thư mục chứa nó chưa tồn tại)** nên `notepad` không mở được.
+
+Mình làm từng bước nhé, ngay trong **Anaconda PowerShell Prompt**:
+
+---
+
+## 1️⃣ Tạo thư mục + file profile trước
+
+Chạy lần lượt các lệnh sau:
+
+```powershell
+# Xem đường dẫn profile hiện tại (cho biết nó muốn tạo file ở đâu)
+echo $PROFILE
+```
+
+Sau đó tạo thư mục chứa file profile (nếu chưa có):
+
+```powershell
+New-Item -ItemType Directory -Path (Split-Path $PROFILE) -Force
+```
+
+Rồi tạo luôn file profile rỗng:
+
+```powershell
+New-Item -ItemType File -Path $PROFILE -Force
+```
+
+Bây giờ mở lại bằng Notepad:
+
+```powershell
+notepad $PROFILE
+```
+
+Lần này sẽ mở được 😊
+
+---
+
+## 2 ️⃣ Thêm lệnh tắt để activate env + cd đúng thư mục
+
+Trong cửa sổ Notepad vừa mở, dán đoạn này vào:
+
+```powershell
+function phd {
+    conda activate python3.10-rl-sumo-gpu
+    Set-Location "E:\Work\FPT University\#Documents\PhD\Paper 4 - Multi Agents\Experiments\Hoan Kiem district"
+}
+```
+
+Lưu file, đóng Notepad.
+
+---
+
+## 3️⃣ Sử dụng
+
+Mỗi lần mở **Anaconda PowerShell Prompt**, chỉ cần gõ:
+
+```powershell
+phd
+```
+
+Là:
+
+* Tự động `conda activate python3.10-rl-sumo-gpu`
+* Nhảy thẳng vào thư mục experiment của bạn.
+
+Nếu chạy xong vẫn báo lỗi gì lạ với `$PROFILE`, bạn cứ copy nguyên thông báo lỗi dán lại đây, mình chỉnh tiếp cho đúng trên máy bạn.
